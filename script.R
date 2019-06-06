@@ -154,7 +154,7 @@ ggplot() +
 lm2.test.RSS <- sum((lm2.predict - test.boston$medv)^2)
 
 # calculate TSS
-lm.test.TSS <- sum((mean(train.boston$medv) - test.boston$medv)^2)
+lm.test.TSS <- sum((mean(test.boston$medv) - test.boston$medv)^2)
 
 # calculate R-squared on the test data
 lm2.test.R2 <- 1 - lm2.test.RSS/lm.test.TSS
