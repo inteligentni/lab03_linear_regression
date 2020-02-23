@@ -4,7 +4,6 @@
 
 # load MASS, corrplot and ggplot2
 
-
 # examine the structure of the Boston dataset
 
 
@@ -23,7 +22,9 @@
 #  plot *lstat* against the response variable
 
 
+
 #  plot *rm* against the response variable
+
 
 
 ##########################
@@ -70,6 +71,7 @@
 # plot the data points and the regression line
 
 
+
 ##########################
 ## Diagnostic Plots
 ##########################
@@ -90,13 +92,13 @@
 
 
 ###############################
-# Multiple Linear Regression
+## Multiple Linear Regression
 ###############################
 
 # generate the scatterplots for variables medv, lstat, rm, ptratio
 
 
-# install.packages('caret')
+# load 'caret'
 
 
 # assure the replicability of the results by setting the seed 
@@ -111,7 +113,7 @@
 # select observations at the positions that are NOT in the train.indices vector
 
 
-# print the summary of both train and test sets
+# print the summary of the outcome variable on both train and test sets
 
 
 # build an lm model with a train dataset using the formula: medv ~ lstat + rm + ptratio
@@ -132,6 +134,7 @@
 # plot actual (medv) vs. predicted values
 
 
+
 # calculate RSS
 
 
@@ -139,6 +142,7 @@
 
 
 # calculate R-squared on the test data
+
 
 
 # calculate RMSE
@@ -154,7 +158,22 @@
 # print the model summary
 
 
-# calculate the predictions with the lm3 model over the test data
+# check for multicolinearity using the vif function (from the 'car' package)
+
+# calculate vif
+
+
+# calculate square root of the VIF
+
+
+# build an lm model with the training set using all of the variables except 'rad'
+# (multicolinearity was detected for 'rad') 
+
+
+# print the model summary
+
+
+# calculate the predictions with the new model over the test data
 
 
 # print out a few predictions
@@ -166,20 +185,14 @@
 # plot actual (medv) vs. predicted values
 
 
+
 # calculate RSS
 
 
 # calculate R-squared on the test data
 
 
+
 # calculate RMSE
 
-
-# load the 'car' package
-
-
-# calculate vif
-
-
-# calculate square root of the VIF
 

@@ -24,14 +24,14 @@ corrplot(corr.matrix, method = "number", type = "upper", diag = FALSE, number.ce
 corrplot.mixed(corr.matrix, tl.cex=0.75, number.cex=0.75)
 
 #  plot *lstat* against the response variable
-p1 <- ggplot(data = Boston, mapping = aes(x = lstat, y = medv)) +
-geom_point(shape = 1)
-p1
+ggplot(data = Boston, mapping = aes(x = lstat, y = medv)) +
+  geom_point(shape = 1) +
+  theme_classic()
 
 #  plot *rm* against the response variable
-p2 <- ggplot(data = Boston, mapping = aes(x = rm, y = medv)) +
-geom_point(shape = 1)
-p2
+ggplot(data = Boston, mapping = aes(x = rm, y = medv)) +
+  geom_point(shape = 1) +
+  theme_classic()
 
 ##########################
 # Simple Linear Regression
@@ -78,7 +78,8 @@ predict(lm1, newdata = df.test, interval = "predict")
 # plot the data points and the regression line
 ggplot(data = Boston, mapping = aes(x = lstat, y = medv)) +
   geom_point(shape = 1) +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  theme_classic()
 
 ##########################
 ## Diagnostic Plots
@@ -125,7 +126,7 @@ train.boston <- Boston[train.indices,]
 # select observations at the positions that are NOT in the train.indices vector
 test.boston <- Boston[-train.indices,]
 
-# print the summary of both train and test sets
+# print the summary of the outcome variable on both train and test sets
 summary(train.boston$medv)
 summary(test.boston$medv)
 
@@ -145,16 +146,17 @@ head(lm2.predict)
 test.boston.lm2 <- cbind(test.boston, pred = lm2.predict) 
 
 # plot actual (medv) vs. predicted values
-ggplot() + 
-  geom_density(data = test.boston.lm2, mapping = aes(x=medv, color = 'real')) +
-  geom_density(data = test.boston.lm2, mapping = aes(x=pred, color = 'predicted')) +
-  scale_colour_discrete(name ="medv distribution")
+ggplot(data = test.boston.lm2) + 
+  geom_density(mapping = aes(x=medv, color = 'real')) +
+  geom_density(mapping = aes(x=pred, color = 'predicted')) +
+  scale_colour_discrete(name ="medv distribution") +
+  theme_classic()
 
 # calculate RSS
 lm2.test.RSS <- sum((lm2.predict - test.boston$medv)^2)
 
 # calculate TSS
-lm.test.TSS <- sum((mean(test.boston$medv) - test.boston$medv)^2)
+lm.test.TSS <- sum((mean(train.boston$medv) - test.boston$medv)^2)
 
 # calculate R-squared on the test data
 lm2.test.R2 <- 1 - lm2.test.RSS/lm.test.TSS
@@ -174,37 +176,46 @@ lm3 <- lm(medv ~ ., data = train.boston) # note the use of '.' to mean all varia
 # print the model summary
 summary(lm3)
 
-# calculate the predictions with the lm3 model over the test data
-lm3.predict <- predict(lm3, newdata = test.boston)
-
-# print out a few predictions
-head(lm3.predict)
-
-# combine the test set with the predictions
-test.boston.lm3 <- cbind(test.boston, pred = lm3.predict) 
-
-# plot actual (medv) vs. predicted values
-ggplot() + 
-  geom_density(data = test.boston.lm3, mapping = aes(x=medv, color = 'real')) +
-  geom_density(data = test.boston.lm3, mapping = aes(x=pred, color = 'predicted')) +
-  scale_colour_discrete(name ="medv distribution")
-
-# calculate RSS
-lm3.test.RSS <- sum((lm3.predict - test.boston$medv)^2)
-
-# calculate R-squared on the test data
-lm3.test.R2 <- 1 - lm3.test.RSS/lm.test.TSS
-lm3.test.R2
-
-# calculate RMSE
-lm3.test.RMSE <- sqrt(lm3.test.RSS/nrow(test.boston))
-lm3.test.RMSE
-
-# load the 'car' package
+# check for multicolinearity using the vif function (from the 'car' package)
 library(car)
 
 # calculate vif
 vif(lm3)
 
 # calculate square root of the VIF
-sqrt(vif(lm3))
+sort(sqrt(vif(lm3)))
+
+# build an lm model with the training set using all of the variables except 'rad'
+# (multicolinearity was detected for 'rad') 
+lm4 <- lm(medv ~ . - rad, data = train.boston) # note the use of '-' to exclude the rad variable
+
+# print the model summary
+summary(lm4)
+
+# calculate the predictions with the new model over the test data
+lm4.predict <- predict(lm4, newdata = test.boston)
+
+# print out a few predictions
+head(lm4.predict)
+
+# combine the test set with the predictions
+test.boston.lm4 <- cbind(test.boston, pred = lm4.predict) 
+
+# plot actual (medv) vs. predicted values
+ggplot(data = test.boston.lm4) + 
+  geom_density(mapping = aes(x=medv, color = 'real')) +
+  geom_density(mapping = aes(x=pred, color = 'predicted')) +
+  scale_colour_discrete(name ="medv distribution") +
+  theme_classic()
+
+# calculate RSS
+lm4.test.RSS <- sum((lm4.predict - test.boston$medv)^2)
+
+# calculate R-squared on the test data
+lm4.test.R2 <- 1 - lm4.test.RSS/lm.test.TSS
+lm4.test.R2
+
+# calculate RMSE
+lm4.test.RMSE <- sqrt(lm4.test.RSS/nrow(test.boston))
+lm4.test.RMSE
+
