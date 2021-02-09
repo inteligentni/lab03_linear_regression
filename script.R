@@ -33,12 +33,31 @@ ggplot(data = Boston, mapping = aes(x = rm, y = medv)) +
   geom_point(shape = 1) +
   theme_classic()
 
+
+#############################################
+# Split the data into training and test sets
+#############################################
+
+# install.packages('caret')
+library(caret)
+
+# assure the replicability of the results by setting the seed 
+set.seed(123)
+
+# generate indices of the observations to be selected for the training set
+train.indices <- createDataPartition(Boston$medv, p = 0.80, list = FALSE)
+# select observations at the positions defined by the train.indices vector
+train.boston <- Boston[train.indices,]
+# select observations at the positions that are NOT in the train.indices vector
+test.boston <- Boston[-train.indices,]
+
+
 ##########################
 # Simple Linear Regression
 ##########################
 
 # build an lm model with a formula: medv ~ lstat 
-lm1 <- lm(medv ~ lstat, data = Boston)
+lm1 <- lm(medv ~ lstat, data = train.boston)
 
 # print the model summary
 summary(lm1)
@@ -59,27 +78,28 @@ lm1_rss
 # compute 95% confidence interval
 confint(lm1, level = 0.95)
 
+# plot the data points and the regression line
+ggplot(data = train.boston, mapping = aes(x = lstat, y = medv)) +
+  geom_point(shape = 1) +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
 ##########################
 ## Making predictions
 ##########################
 
-# create a test data frame containing only lstat variable and three observations: 5, 10, 15
-df.test <- data.frame(lstat=c(5, 10, 15))
-
 # calculate the predictions with the fitted model over the test data
-predict(lm1, newdata = df.test)
+medv_pred <- predict(lm1, newdata = test.boston)
+head(medv_pred, 10)
 
 # calculate the predictions with the fitted model over the test data, including the confidence interval
-predict(lm1, newdata = df.test, interval = "confidence")
+medv_pred <- predict(lm1, newdata = test.boston, interval = "confidence")
+head(medv_pred, 10)
 
 # calculate the predictions with the fitted model over the test data, including the prediction interval
-predict(lm1, newdata = df.test, interval = "predict")
+medv_pred <- predict(lm1, newdata = test.boston, interval = "predict")
+head(medv_pred, 10)
 
-# plot the data points and the regression line
-ggplot(data = Boston, mapping = aes(x = lstat, y = medv)) +
-  geom_point(shape = 1) +
-  geom_smooth(method = "lm") +
-  theme_classic()
 
 ##########################
 ## Diagnostic Plots
@@ -99,7 +119,7 @@ lm1.leverage <- hatvalues(lm1)
 plot(lm1.leverage)
 
 # calculate the number of high leverage points 
-n <- nrow(Boston)
+n <- nrow(train.boston)
 p <- 1
 cutoff <- 2*(p+1)/n
 length(which(lm1.leverage > cutoff))
@@ -109,26 +129,7 @@ length(which(lm1.leverage > cutoff))
 ###############################
 
 # generate the scatterplots for variables medv, lstat, rm, ptratio
-pairs(~medv + lstat + rm + ptratio, data = Boston)
-
-# install.packages('caret')
-library(caret)
-
-# assure the replicability of the results by setting the seed 
-set.seed(123)
-
-# generate indices of the observations to be selected for the training set
-train.indices <- createDataPartition(Boston$medv, p = 0.80, list = FALSE)
-
-# select observations at the positions defined by the train.indices vector
-train.boston <- Boston[train.indices,]
-
-# select observations at the positions that are NOT in the train.indices vector
-test.boston <- Boston[-train.indices,]
-
-# print the summary of the outcome variable on both train and test sets
-summary(train.boston$medv)
-summary(test.boston$medv)
+pairs(~medv + lstat + rm + ptratio, data = train.boston)
 
 # build an lm model with a train dataset using the formula: medv ~ lstat + rm + ptratio
 lm2 <- lm(medv ~ lstat + rm + ptratio, data = train.boston)
