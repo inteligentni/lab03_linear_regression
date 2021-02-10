@@ -87,13 +87,46 @@ ggplot(data = Boston, mapping = aes(x = rm, y = medv)) +
 
 ```
 
+
+To be able to properly test our model, we need to split our dataset into:
+
+1. **training data** that will be used to build a model,
+2. **test data** to be used to evaluate/test the predictive power of our model.
+
+Typically, 80% of observations are used for training and the rest for testing.
+
+When splitting the dataset, we need to assure that observations are randomly assigned to the training and testing data sets. In addition, we should assure that the outcome variable has the same distribution in the train and test sets. This can be easily done using the *createDataPartition()* function from the *caret* package.
+
+```{r message=FALSE}
+# install.packages('caret')
+library(caret)
+
+# assure the replicability of the results by setting the seed 
+set.seed(123)
+
+# generate indices of the observations to be selected for the training set
+train.indices <- createDataPartition(Boston$medv, p = 0.80, list = FALSE)
+# select observations at the positions defined by the train.indices vector
+train.boston <- Boston[train.indices,]
+# select observations at the positions that are NOT in the train.indices vector
+test.boston <- Boston[-train.indices,]
+```
+
+Check that the outcome variable (*medv*) has the same distribution in the training and test sets
+```{r}
+# print the summary of the outcome variable on both train and test sets
+summary(train.boston$medv)
+summary(test.boston$medv)
+```
+
+
 # Simple Linear Regression
 
 Let's start by building a simple linear regression model, with *medv* as the response and *lstat* as the predictor. We create this simple model just to showcase the basic functions related to linear regression. In the section *Multiple Linear Regression* we will create a more realistic model that includes multiple variables.
 
 ```{r}
 # build an lm model with a formula: medv ~ lstat 
-lm1 <- lm(medv ~ lstat, data = Boston)
+lm1 <- lm(medv ~ lstat, data = train.boston)
 
 # print the model summary
 summary(lm1)
@@ -107,8 +140,8 @@ As we see, the *summary()* function gives us (among other things) the following:
 
 In particular, we can conclude the following:
 
-* based on the coefficient of the *lstat* variable, with each unit increase in *lstat*, that is, with a percentage increase in the households with low socioeconomic status, median house value decreases by 0.95005 units; since outcome variable is expressed in 1000s USD, that further means that a percentage increase in the low-income households leads to a decrease of 950USD in the median house value 
-* based on the R^2^ value, this model explains 54.4% of the variability in the median house value.
+* based on the coefficient of the *lstat* variable, with each unit increase in *lstat*, that is, with a percentage increase in the households with low socioeconomic status, median house value decreases by 0.9561 units; since outcome variable is expressed in 1000s USD, that further means that a percentage increase in the low-income households leads to a decrease of 956USD in the median house value 
+* based on the R^2^ value, this model explains 55.21% of the variability in the median house value.
 * based on the F statistic and the associated p-value, there is a significant relationship between the predictor and the response variable. Note that the F-test is a test of the overall significance of a regression model and it indicates whether the model provides a better fit to the data than a model with no independent variables.
 
 To find out what other pieces of information are stored in the fitted model (that is, the *lm1* object), we can use the *names()* function.
@@ -146,30 +179,41 @@ Recall that the obtained coefficient values are just estimates (of the real coef
 confint(lm1, level = 0.95)
 ```
 
-## Making predictions
-
-Now that we have a model, we can predict the value of *medv* based on the given *lstat* values. To illustrate that, we will create a tiny test data frame.
+To visually examine how well our model 'fits the data', we will first plot the data points for the *lstat* and *medv* variables. Next, we will add to the plot the regression line (blue coloured), with the confidence intervals (the gray area around the line).
 
 ```{r}
-# create a test data frame containing only lstat variable and three observations: 5, 10, 15
-df_test <- data.frame(lstat=c(5, 10, 15))
+# plot the data points and the regression line
+ggplot(data = train.boston, mapping = aes(x = lstat, y = medv)) +
+  geom_point(shape = 1) +
+  geom_smooth(method = "lm")
+```
 
-# calculate the predictions with the fitted model over the test data
-predict(lm1, newdata = df_test)
+The plot indicates that there is some non-linearity in the relationship between *lstat* and *medv*.
+
+
+## Making predictions
+
+Now that we have a model, we can predict the value of *medv* based on the given *lstat* values. To do that, we will use the test data set.
+
+```{r}
+medv_pred <- predict(lm1, newdata = test.boston)
+head(medv_pred, 10)
 ```
 
 We can also include the confidence interval for the predictions:
 
 ```{r}
 # calculate the predictions with the fitted model over the test data, including the confidence interval
-predict(lm1, newdata = df_test, interval = "confidence")
+medv_pred <- predict(lm1, newdata = test.boston, interval = "confidence")
+head(medv_pred, 10)
 ```
 
 Or, we can examine prediction intervals:
 
 ```{r}
 # calculate the predictions with the fitted model over the test data, including the prediction interval
-predict(lm1, newdata = df_test, interval = "predict")
+medv_pred <- predict(lm1, newdata = test.boston, interval = "predict")
+head(medv_pred, 10)
 ```
 
 Notice the difference between the confidence and prediction intervals - the latter is much wider, reflecting far more uncertainty in the predicted value. This can be explained as follows: 
@@ -179,16 +223,6 @@ Notice the difference between the confidence and prediction intervals - the latt
 
 To better understand the difference between the prediction and confidence intervals, you can check this ([YouTube video explanation](https://www.youtube.com/watch?v=o0UESA3UZss)).
 
-To visually examine how well our model 'fits the data', we will first plot the data points for the *lstat* and *medv* variables. Next, we will add to the plot the regression line (blue coloured), with the confidence intervals (the gray area around the line).
-
-```{r}
-# plot the data points and the regression line
-ggplot(data = Boston, mapping = aes(x = lstat, y = medv)) +
-  geom_point(shape = 1) +
-  geom_smooth(method = "lm")
-```
-
-The plot indicates that there is some non-linearity in the relationship between *lstat* and *medv*.
 
 ## Diagnostic Plots
 
@@ -215,10 +249,12 @@ par(mfrow=c(1,1))
 
 Interpretation of the plots:
 
-* The 1st plot, **Residual vs Fitted value**, is used for checking if the linearity assumption is satisfied (Assumption 1). A pattern could show up in this plot if there is a non-linear relationship between the dependent and independent variables. If residuals are equally spread around a horizontal line without distinct patterns, that is an indication that there are no non-linear relationships. In this case, the plot indicates a non-linear relationship between the predictors and the response variable.
+* The 1st plot, **Residual vs Fitted value**, is used for checking if the linearity assumption is satisfied (Assumption 1). A pattern could show up in this plot if there is a non-linear relationship between the dependent and independent variables. If residuals are equally spread around the horizontal line without distinct patterns, that is an indication that there are no non-linear relationships. In this case, the plot indicates a non-linear relationship between the predictors and the response variable.
 * The 2nd plot, **Normal Q-Q plot**, tells us if residuals are normally distributed (Assumption 2). The residuals should be lined well on the straight dashed line. In this case, we see a considerable deviation from the diagonal, and therefore, from the normal distribution.
-* The 3rd plot, **Scale-Location**, is used for checking the assumption of the equal variance of residuals, homoscedasticity (Assumption 3). It’s good if there is a horizontal line with equally (randomly) spread points. In this case, the variance of the residuals tends to differ. So, the assumption is not fulfiled.
+* The 3rd plot, **Scale-Location**, is used for checking the assumption of the equal variance of residuals, homoscedasticity (Assumption 3). It’s good if the data points seem to be randomly spread above and below the horizontal line. In this case, the variance of the residuals tends to differ. So, the assumption is not fulfiled.
 * The 4th plot, **Residuals vs Leverage**, is used for spotting the presence of high leverage points (Assumption 4). Their presence can seriously affect the estimation of the regression coefficients. They can be typically spotted in the corners, that is, beyond the dashed line that indicates the Cook’s distance (they have high Cook’s distance scores). In this case, there are several such observations.
+
+Taken all together, the four plots indicate that our linear model, and thus its predictions, are not trustworthy. 
 
 For a nice explanation of the diagnostic plots, check the article [Understanding Diagnostic Plots for Linear Regression Analysis](http://data.library.virginia.edu/diagnostic-plots/).
 
@@ -236,13 +272,13 @@ We can check this further by examining the value of leverage statistic for the o
 Let's check this for our data:
 ```{r}
 # calculate the number of high leverage points 
-n <- nrow(Boston)
+n <- nrow(train.boston)
 p <- 1
 cutoff <- 2*(p+1)/n
 length(which(lm1.leverage > cutoff))
 ```
 
-The results confirm that there are several (34) high leverage points.
+The results confirm that there are several (25) high leverage points.
 
 # Multiple Linear Regression
 
@@ -257,39 +293,6 @@ pairs(~medv + lstat + rm + ptratio, data = Boston)
 
 Far from proper linear relation, but let's see what the model will look like.
 
-To be able to properly test our model (not use fictitious data points as we did in the case of simple linear regression), we need to split our dataset into:
-
-1 **training data** that will be used to build a model,
-2 **test data** to be used to evaluate/test the predictive power of our model.
-
-Typically, 80% of observations are used for training and the rest for testing.
-
-When splitting the dataset, we need to assure that observations are randomly assigned to the training and testing data sets. In addition, we should assure that the outcome variable has the same distribution in the train and test sets. This can be easily done using the *createDataPartition()* function from the *caret* package.
-
-```{r message=FALSE}
-# install.packages('caret')
-library(caret)
-
-# assure the replicability of the results by setting the seed 
-set.seed(123)
-
-# generate indices of the observations to be selected for the training set
-train.indices <- createDataPartition(Boston$medv, p = 0.80, list = FALSE)
-# select observations at the positions defined by the train.indices vector
-train.boston <- Boston[train.indices,]
-# select observations at the positions that are NOT in the train.indices vector
-test.boston <- Boston[-train.indices,]
-```
-
-Check that the outcome variable (*medv*) has the same distribution in the training and test sets
-```{r}
-# print the summary of the outcome variable on both train and test sets
-summary(train.boston$medv)
-summary(test.boston$medv)
-```
-
-Now, build a model using the training data set.
-
 ```{r}
 # build an lm model with a train dataset using the formula: medv ~ lstat + rm + ptratio
 lm2 <- lm(medv ~ lstat + rm + ptratio, data = train.boston)
@@ -300,14 +303,14 @@ summary(lm2)
 
 From the summary, we can see that:
 
-* R-squared has increased considerably, from `r round(summary(lm1)$r.squared, digits=3)` to 0.694 even though we have built it with a smaller dataset (`r nrow(train.boston)` observations, instead of `r n` observations),
+* R-squared has increased considerably, from `r round(summary(lm1)$r.squared, digits=3)` to 0.675,
 * all 3 predictors are highly significant.
 
 **TASK 1**: Interpret the estimated coefficients (see how it was done for the simple linear regression).
 
 **TASK 2**: Use diagnostic plots to examine how well the model adheres to the assumptions. 
 
-Let's make predictions using this model on the test data set that we have created.
+Let's make predictions using this model on the test data set.
 ```{r}
 # calculate the predictions with the lm2 model over the test data
 lm2.predict <- predict(lm2, newdata = test.boston)
@@ -346,7 +349,7 @@ lm2.test.R2 <- 1 - lm2.test.RSS/lm.test.TSS
 lm2.test.R2
 ```
 
-R^2^ on the test is slightly above the one obtained on the training set, which confirms the stability of our model.
+R^2^ on the test is very similar to the one obtained on the training set, which confirms the stability of our model.
 
 Let's also compute **Root Mean Squared Error (RMSE)** to see how much error we are making with the predictions. Recall: $RMSE = \sqrt{\frac{RSS}{n}}$.
 ```{r}
@@ -363,7 +366,7 @@ mean(test.boston$medv)
 lm2.test.RMSE/mean(test.boston$medv)
 ```
 
-So, it's not a small error, it's about 25% of the mean value.
+So, it's not a small error, it's about 23% of the mean value.
 
 Let's now build another model using all available predictors:
 ```{r}
@@ -378,9 +381,10 @@ Note that even though we now have 13 predictors, we haven't much improved the R^
 
 The 3 predictors from the previous model are still highly significant. Plus, there are a number of other significant variables.
 
-Considering the number of variables in the model, we should check for **multicolinearity** (one the assumptions of the multiple linear regression). 
-*Collinearity* refers to a situation when 2 or more predictors are highly related to one another. A simple way to detect collinearity is to look at the correlation matrix of the predictors. However, it is possible for collinearity to exist between 3 or more variables even if no pair of variables has a particularly high correlation - this is known as *multicollinearity*.
-One way to check for multicollinearity is to compute the **variance inflation factor (VIF)**:
+Considering the number of variables in the model, we should check for **multicolinearity**. 
+*Collinearity* refers to a situation when 2 or more predictors are highly related to one another. A simple way to detect collinearity is to look at the correlation matrix of the predictors. However, it is possible for collinearity to exist between 3 or more variables even if no pair of variables has a particularly high correlation - this is known as *multicollinearity*. One of the assumptions of multiple linear regression is the *absence of multicolinearity*.
+
+One way to check for multicollinearity is to compute the **Variance Inflation Factor (VIF)**:
 ```{r message=FALSE}
 # load the 'car' package
 library(car)
@@ -408,9 +412,15 @@ lm4 <- lm(medv ~ . - rad, data = train.boston) # note the use of '-' to exclude 
 summary(lm4)
 ```
 
+Check the VIF scores again
+```{r}
+sort(sqrt(vif(lm4)))
+```
+Now, it's better. Two variables - *dis* and *nox* - are edge cases, but we will keep them. You can try to build a new model (lm5) by excluding one of them (the one that is less associated with the outcome variable) and see if you'll get a better model.
+
+
 Let's do the prediction using the new model:
 ```{r}
-# calculate the predictions with the lm3 model over the test data
 lm4.predict <- predict(lm4, newdata = test.boston)
 ```
 
