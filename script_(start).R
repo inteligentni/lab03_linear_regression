@@ -81,9 +81,6 @@
 # reset the plotting area
 
 
-# compute the leverage statistic
-
-
 
 ###########################################
 ## Make predictions and evaluate the model
