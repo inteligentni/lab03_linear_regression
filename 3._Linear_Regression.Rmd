@@ -1,8 +1,8 @@
 ---
 title: "Linear Regression"
 output:
-  word_document: default
   pdf_document: default
+  word_document: default
 urlcolor: blue
 ---
 
@@ -368,29 +368,30 @@ lm2.test.RMSE/mean(test.boston$medv)
 
 So, it's not a small error, it's about 23% of the mean value.
 
-Let's now build another model using all available predictors:
+Let's now build another model using all available variables except the *chas* variable since it is essentially a binary indicator variable and not a number (Note: variables such as *chas* can be included in regression models; however, they require different treatment than numeric variables and thus will be omitted here).
 ```{r}
-# build an lm model with the training set using all of the variables
-lm3 <- lm(medv ~ ., data = train.boston) # note the use of '.' to mean all variables
+# build an lm model with the training set using all of the variables except chas
+lm3 <- lm(medv ~ . - chas, data = train.boston) 
+# note the use of '.' to mean all variables and the use of '-' to exclude the chas variable
 
 # print the model summary
 summary(lm3)
 ```
 
-Note that even though we now have 13 predictors, we haven't much improved the R^2^ value: in the model with 3 predictors (lm2), it was `r round(summary(lm2)$r.squared, digits=3)` and now it is `r round(summary(lm3)$r.squared, digits=3)`. In addition, it should be recalled that R^2^ increases with the increase in the number of predictors, no matter how good/useful they are.
+Note that even though we now have 12 predictors, we haven't much improved the R^2^ value: in the model with 3 predictors (lm2), it was `r round(summary(lm2)$r.squared, digits=3)` and now it is `r round(summary(lm3)$r.squared, digits=3)`. In addition, it should be recalled that R^2^ increases with the increase in the number of predictors, no matter how good/useful they are.
 
-The 3 predictors from the previous model are still highly significant. Plus, there are a number of other significant variables.
+The 3 predictors from the previous model are still highly significant. Plus, there are several other significant variables.
 
 Considering the number of variables in the model, we should check for **multicolinearity**. 
 *Collinearity* refers to a situation when 2 or more predictors are highly related to one another. A simple way to detect collinearity is to look at the correlation matrix of the predictors. However, it is possible for collinearity to exist between 3 or more variables even if no pair of variables has a particularly high correlation - this is known as *multicollinearity*. One of the assumptions of multiple linear regression is the *absence of multicolinearity*.
 
 One way to check for multicollinearity is to compute the **Variance Inflation Factor (VIF)**:
 ```{r message=FALSE}
-# load the 'car' package
+# load the 'car' package since it contains a function for computing VIF
 library(car)
 ```
 ```{r}
-# calculate vif
+# calculate VIF
 vif(lm3)
 ```
 
@@ -401,66 +402,82 @@ As a rule of thumb, variables having $\sqrt{vif} > 2$ are problematic.
 sort(sqrt(vif(lm3)))
 ```
 
-We can see that *tax* and *rad* variables exhibit multicollinearity. If we go back to the correlation plot, we'll see that they are, indeed, highly correlated (0.91). There are also a few other suspicious variables - *indus*, *nox*, and *dis* - since their VIF values are at the very threshold of what is considered acceptable.
+We can see that variables *tax*, *rad*, *nox*, and *dis* are probably causing multicollinearity. If we go back to the correlation plot, we'll see that they are, indeed, highly correlated. The *indus* variable is also suspicious since its VIF value is at the very threshold of what is considered acceptable.
 
-So, we will create a new model (lm4) by excluding either *tax* or *rad* variable. Since *tax* has higher correlation with the outcome variable (than *rad*), we'll keep *tax* and exclude *rad*:
+We will proceed by excluding variables with the highest VIF value one by one; after excluding each such variable, we will create a new model and check VIF values of the variables in the model. This iterative process will stop once no variable has high VIF value (that is square root of VIF >= 2). 
+
+So, we will start by creating a model (lm4) without the *tax* variable, as the variable with the highest VIF value:
 ```{r}
-# build an lm model with the training set using all of the variables except *rad*
-lm4 <- lm(medv ~ . - rad, data = train.boston) # note the use of '-' to exclude the rad variable
-
-# print the model summary
-summary(lm4)
+# build an lm model with the training set using all of the variables except chas and tax
+lm4 <- lm(medv ~ . - (chas + tax), data = train.boston) 
 ```
 
 Check the VIF scores again
 ```{r}
 sort(sqrt(vif(lm4)))
 ```
-Now, it's better. Two variables - *dis* and *nox* - are edge cases, but we will keep them. You can try to build a new model (lm5) by excluding one of them (the one that is less associated with the outcome variable) and see if you'll get a better model.
+Next, we will exclude *nox* and build a new model (lm5):
+```{r}
+lm5 <- lm(medv ~ . - (chas + tax + nox), data = train.boston) 
+```
+```{r}
+sort(sqrt(vif(lm5)))
+```
+Now, it's better. Variable *dis* is the edge case, but let's keep it for now and examine the model: 
+```{r}
+summary(lm5)
+```
+Note the following in the model's summary: variable *dis* turned out to be highly significant even though it has low correlation with the outcome variable (0.25 - check the correlation plot). Likewise, the *indus* varible that previously proved insignificant, now has become significant. Finally, note that *indus* and *dis* are highly mutually correlated (0.71 - check the correlation plot). This is a clear example of collinearity and that the VIF value of 1.942 for the *dis* variable should have been interpreted as a sign to exclude *dis*; we'll do that now:  
 
+```{r}
+lm6 <- lm(medv ~ . - (chas + tax + nox + dis), data = train.boston) 
+
+summary(lm6)
+```
+Now, we have a model 'cleaned' of multicollinearity. 
 
 Let's do the prediction using the new model:
 ```{r}
-lm4.predict <- predict(lm4, newdata = test.boston)
+lm6.predict <- predict(lm6, newdata = test.boston)
 ```
 
 Plot the distribution of predictions against the real values of the response variable (*medv*).
 
 ```{r}
 # combine the test set with the predictions
-test.boston.lm4 <- cbind(test.boston, pred = lm4.predict) 
+test.boston.lm6 <- cbind(test.boston, pred = lm6.predict) 
 
 # plot actual (medv) vs. predicted values
-ggplot(data = test.boston.lm4) + 
+ggplot(data = test.boston.lm6) + 
   geom_density(mapping = aes(x=medv, color = 'real')) +
   geom_density(mapping = aes(x=pred, color = 'predicted')) +
   scale_colour_discrete(name ="medv distribution") +
   theme_classic()
 ```
 
-Based on the plot, the latest model seems to be a better fit for the data.
+The plot suggests that the latest model is somewhat better fit for the data.
 
 As before, we'll compute R^2^ on the test data.
 
 ```{r}
 # calculate RSS
-lm4.test.RSS <- sum((lm4.predict - test.boston$medv)^2)
+lm6.test.RSS <- sum((lm6.predict - test.boston$medv)^2)
 
 # calculate R-squared on the test data
-lm4.test.R2 <- 1 - lm4.test.RSS/lm.test.TSS
-lm4.test.R2
+lm6.test.R2 <- 1 - lm6.test.RSS/lm.test.TSS
+lm6.test.R2
 ```
 
-Again, we got somewhat better R^2^ than on the train set.
+We got almost the same R^2^ as for the lm2 model.
 
 We can also compute RMSE:
 
 ```{r}
 # calculate RMSE
-lm4.test.RMSE <- sqrt(lm4.test.RSS/nrow(test.boston))
-lm4.test.RMSE
+lm6.test.RMSE <- sqrt(lm6.test.RSS/nrow(test.boston))
+lm6.test.RMSE
 ```
 
-It is lower (therefore, better) than with the previous models.
+We've got almost the same RMSE as for lm2. Since lm2 is simpler model (less variables), it is the preferred one (recall that simpler model generalise better).
 
 **TASK**: use diagnostic plots to examine how well this model adheres to the assumptions. 

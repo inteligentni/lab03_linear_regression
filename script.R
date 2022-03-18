@@ -171,8 +171,9 @@ lm2.test.RMSE
 mean(test.boston$medv)
 lm2.test.RMSE/mean(test.boston$medv)
 
-# build an lm model with the training set using all of the variables
-lm3 <- lm(medv ~ ., data = train.boston) # note the use of '.' to mean all variables
+# build an lm model with the training set using all of the variables except chas
+lm3 <- lm(medv ~ . - chas, data = train.boston) 
+# note the use of '.' to mean all variables and the use of '-' to exclude the chas variable
 
 # print the model summary
 summary(lm3)
@@ -186,37 +187,51 @@ vif(lm3)
 # calculate square root of the VIF
 sort(sqrt(vif(lm3)))
 
-# build an lm model with the training set using all of the variables except 'rad'
-# (multicolinearity was detected for 'rad') 
-lm4 <- lm(medv ~ . - rad, data = train.boston) # note the use of '-' to exclude the rad variable
+# build an lm model with the training set using all of the variables except chas and tax
+# (multicolinearity was detected for 'tax') 
+lm4 <- lm(medv ~ . - (chas + tax), data = train.boston) 
 
-# print the model summary
-summary(lm4)
+# check the VIF scores again
+sort(sqrt(vif(lm4)))
+
+# next, we will exclude *nox* and build a new model (lm5):
+lm5 <- lm(medv ~ . - (chas + tax + nox), data = train.boston) 
+
+sort(sqrt(vif(lm5)))
+# The *dis* variable is the edge case
+
+summary(lm5)
+
+# The summary of lm5 indicated that *dis* should be excluded
+lm6 <- lm(medv ~ . - (chas + tax + nox + dis), data = train.boston) 
+
+summary(lm6)
+
 
 # calculate the predictions with the new model over the test data
-lm4.predict <- predict(lm4, newdata = test.boston)
+lm6.predict <- predict(lm6, newdata = test.boston)
 
 # print out a few predictions
-head(lm4.predict)
+head(lm6.predict)
 
 # combine the test set with the predictions
-test.boston.lm4 <- cbind(test.boston, pred = lm4.predict) 
+test.boston.lm6 <- cbind(test.boston, pred = lm6.predict) 
 
 # plot actual (medv) vs. predicted values
-ggplot(data = test.boston.lm4) + 
+ggplot(data = test.boston.lm6) + 
   geom_density(mapping = aes(x=medv, color = 'real')) +
   geom_density(mapping = aes(x=pred, color = 'predicted')) +
   scale_colour_discrete(name ="medv distribution") +
   theme_classic()
 
 # calculate RSS
-lm4.test.RSS <- sum((lm4.predict - test.boston$medv)^2)
+lm6.test.RSS <- sum((lm6.predict - test.boston$medv)^2)
 
 # calculate R-squared on the test data
-lm4.test.R2 <- 1 - lm4.test.RSS/lm.test.TSS
-lm4.test.R2
+lm6.test.R2 <- 1 - lm6.test.RSS/lm.test.TSS
+lm6.test.R2
 
 # calculate RMSE
-lm4.test.RMSE <- sqrt(lm4.test.RSS/nrow(test.boston))
-lm4.test.RMSE
+lm6.test.RMSE <- sqrt(lm6.test.RSS/nrow(test.boston))
+lm6.test.RMSE
 

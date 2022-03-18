@@ -122,31 +122,32 @@
 ## Create a more complex model and examine multicollinearity
 ##############################################################
 
-# build a new model using all of the variables
+# build an lm model with the training set using all of the variables except chas
 
 
 # print the model summary
 
 
-# check for multicollinearity using the vif function (from the 'car' package)
-
-
-# calculate vif
+# check for multicolinearity using the vif function (from the 'car' package)
 
 
 # calculate square root of the VIF
 
 
-# build a new model using all of the variables except those with the 
-# highest VIF value
+# build an lm model with the training set using all of the variables except chas and tax
+# (multicolinearity was detected for 'tax') 
 
 
+# check the VIF scores again
 
-# print the model summary
+
+# next, we will exclude *nox* and build a new model (lm5):
 
 
-# calculate the predictions over the test data
+# The summary of lm5 indicated that *dis* should be excluded
 
+
+# calculate the predictions with the new model over the test data
 
 
 # combine the test set with the predictions
